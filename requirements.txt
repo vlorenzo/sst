@@ -1,0 +1,6 @@
+Flask
+Flask-SocketIO
+openai-whisper
+googletrans
+numpy==1.21.0
+pydub

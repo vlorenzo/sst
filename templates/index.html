@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simultaneous Translation App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Simultaneous Translation</h1>
+    <button id="startButton">Start Translation</button>
+    <button id="stopButton" disabled>Stop Translation</button>
+    <div id="output"></div>
+
+    <script>
+        const socket = io();
+        let mediaRecorder;
+        let audioChunks = [];
+
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const output = document.getElementById('output');
+
+        startButton.onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                    if (mediaRecorder.state === "inactive") {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        socket.emit('audio_data', audioBlob);
+                        audioChunks = [];
+                    }
+                };
+
+                mediaRecorder.start(1000);
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                output.innerHTML = "Recording started...";
+            } catch (err) {
+                console.error("Error accessing microphone:", err);
+                output.innerHTML = "Error: " + err.message;
+            }
+        };
+
+        stopButton.onclick = () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                output.innerHTML += "<br>Recording stopped.";
+            }
+        };
+
+        socket.on('translation', (data) => {
+            output.innerHTML += `<p>${data.text}</p>`;
+        });
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+
+        socket.on('error', (error) => {
+            console.error('Socket error:', error);
+            output.innerHTML += `<p>Error: ${error.message}</p>`;
+        });
+    </script>
+</body>
+</html>
