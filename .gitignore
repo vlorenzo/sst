@@ -18,12 +18,18 @@ ENV/
 .idea/
 
 # Project specific
+data/
 freeze.out
 requirements.txt.2
 simultaneous-translation-app-v*.py
 diagnostic-app.py
+requirements-freeze.txt
+requirements.old
+simultaneous-translation-app.py
+simultaneous-translation-app (1).py
 
 # Temporary HTML files
 templates/index-*.html
 old_versions/
+
 

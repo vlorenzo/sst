@@ -9,7 +9,9 @@ import time
 import logging
 import requests
 import argparse
-
+import os
+import wave
+from datetime import datetime
 
 
 # Set up logging
@@ -132,6 +134,26 @@ def process_audio(audio_data):
     logger.warning("Received empty or invalid audio data")
     return np.array([], dtype=AUDIO_DTYPE), time.time() - start_time
 
+
+# Add this function to save audio segments
+def save_audio_segment(audio_data, sample_rate, input_lang):
+    # Create a 'data' folder if it doesn't exist
+    if not os.path.exists('data'):
+        os.makedirs('data')
+    
+    # Generate a filename with timestamp and input language
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"data/audio_{timestamp}_{input_lang}.wav"
+    
+    # Save the audio data as a WAV file
+    with wave.open(filename, 'wb') as wf:
+        wf.setnchannels(1)  # Mono audio
+        wf.setsampwidth(2)  # 2 bytes per sample
+        wf.setframerate(sample_rate)
+        wf.writeframes(audio_data.tobytes())
+    
+    logger.info(f"Saved audio segment: {filename}")
+
 def audio_processor(app):
     logger.info("Starting audio processor thread...")
     global translation_result
@@ -160,9 +182,17 @@ def audio_processor(app):
                     logger.info("Audio level above silence threshold, transcribing...")
                     audio_buffer_contiguous = np.ascontiguousarray(audio_buffer, dtype=AUDIO_DTYPE)
                     
+                    # Log some debug information
+                    logger.debug(f"Audio buffer shape: {audio_buffer_contiguous.shape}")
+                    logger.debug(f"Audio buffer dtype: {audio_buffer_contiguous.dtype}")
+                    logger.debug(f"Audio buffer min: {np.min(audio_buffer_contiguous)}, max: {np.max(audio_buffer_contiguous)}")
+                    
+                    # Save the audio segment
+                    input_lang = app.config['INPUT_LANG']
+                    save_audio_segment(audio_buffer_contiguous, SAMPLE_RATE, input_lang)
+                    
                     # Transcription
                     transcribe_start_time = time.time()
-                    input_lang = app.config['INPUT_LANG']
                     result = model.transcribe(audio_buffer_contiguous, language=input_lang)
                 
                     transcribe_duration = time.time() - transcribe_start_time
