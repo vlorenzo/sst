@@ -12,6 +12,7 @@ import argparse
 import os
 import wave
 from datetime import datetime
+import soundfile as sf
 
 
 # Set up logging
@@ -137,22 +138,20 @@ def process_audio(audio_data):
 
 # Add this function to save audio segments
 def save_audio_segment(audio_data, sample_rate, input_lang):
-    # Create a 'data' folder if it doesn't exist
     if not os.path.exists('data'):
         os.makedirs('data')
     
-    # Generate a filename with timestamp and input language
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"data/audio_{timestamp}_{input_lang}.wav"
     
-    # Save the audio data as a WAV file
-    with wave.open(filename, 'wb') as wf:
-        wf.setnchannels(1)  # Mono audio
-        wf.setsampwidth(2)  # 2 bytes per sample
-        wf.setframerate(sample_rate)
-        wf.writeframes(audio_data.tobytes())
+    # Normalize audio data to float32 range [-1, 1]
+    audio_data_normalized = audio_data.astype(np.float32) / np.iinfo(np.int16).max
+    
+    # Save using soundfile library
+    sf.write(filename, audio_data_normalized, sample_rate)
     
     logger.info(f"Saved audio segment: {filename}")
+
 
 def audio_processor(app):
     logger.info("Starting audio processor thread...")
