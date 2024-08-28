@@ -1,3 +1,28 @@
+# Python
 sst/
 *.pyc
 __pycache__/
+*.py[cod]
+__pycache__/
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+
+# Project specific
+freeze.out
+requirements.txt.2
+simultaneous-translation-app-v*.py
+diagnostic-app.py
+
+# Temporary HTML files
+templates/index-*.html
+

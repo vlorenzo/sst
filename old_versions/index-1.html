@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simultaneous Translation App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Simultaneous Translation</h1>
+    <button id="startButton">Start Translation</button>
+    <button id="stopButton" disabled>Stop Translation</button>
+    <div id="output"></div>
+
+    <script>
+        const socket = io();
+        let mediaRecorder;
+        let audioChunks = [];
+
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const output = document.getElementById('output');
+
+        startButton.onclick = async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+                if (mediaRecorder.state === "inactive") {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    socket.emit('audio_data', audioBlob);
+                    audioChunks = [];
+                }
+                
+// suggested for app v4 code 
+// mediaRecorder.ondataavailable = (event) => {
+//    audioChunks.push(event.data);
+//    if (audioChunks.length > 0) {
+//        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+//        socket.emit('audio_data', audioBlob);
+//        audioChunks = [];
+//    }
+//};
+//
+//mediaRecorder.start(1000);  // Send data every 1 second                
+//            };
+
+            mediaRecorder.start(1000);
+            startButton.disabled = true;
+            stopButton.disabled = false;
+        };
+
+        stopButton.onclick = () => {
+            mediaRecorder.stop();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        };
+
+        socket.on('translation', (data) => {
+            output.innerHTML += `<p>${data.text}</p>`;
+        });
+    </script>
+</body>
+</html>

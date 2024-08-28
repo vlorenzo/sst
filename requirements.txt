@@ -1,6 +1,6 @@
-Flask
-Flask-SocketIO
-openai-whisper
-googletrans
-numpy==1.21.0
-pydub
+Flask==3.0.3
+Flask-SocketIO==5.3.6
+googletrans==3.0.0
+numpy==1.22.0
+openai-whisper==20231117
+requests==2.32.3

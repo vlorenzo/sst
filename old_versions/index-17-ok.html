@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Italian to English Translation App</title>
+    <title>Simultaneous Translation App</title>
     <style>
         #status, #error { color: red; }
-        #output { margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        #output { margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h1>Italian to English Translation</h1>
-    <p>Speak in Italian, and see the English translation below.</p>
+    <h1>Simultaneous Translation</h1>
     <button id="startButton">Start Translation</button>
     <button id="stopButton" disabled>Stop Translation</button>
     <div id="status"></div>
@@ -22,13 +21,13 @@
         let audioContext;
         let mediaStreamSource;
         let processor;
-        let audioChunks = [];
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
         const status = document.getElementById('status');
         const error = document.getElementById('error');
         const output = document.getElementById('output');
 
+        // Get the server's URL dynamically
         const serverURL = window.location.origin;
 
         startButton.onclick = async () => {
@@ -43,16 +42,12 @@
 
                 processor.onaudioprocess = (e) => {
                     const inputData = e.inputBuffer.getChannelData(0);
-                    audioChunks.push(...inputData);
-                    if (audioChunks.length >= audioContext.sampleRate * 3) {  // 3 seconds of audio
-                        sendAudioToServer(new Float32Array(audioChunks));
-                        audioChunks = [];
-                    }
+                    sendAudioToServer(inputData);
                 };
 
                 startButton.disabled = true;
                 stopButton.disabled = false;
-                status.textContent = "Recording and translating Italian to English...";
+                status.textContent = "Recording and translating...";
                 error.textContent = "";
                 pollForTranslation();
             } catch (err) {
@@ -69,17 +64,17 @@
                 startButton.disabled = false;
                 stopButton.disabled = true;
                 status.textContent = "Recording stopped.";
-                audioChunks = [];
             }
         };
 
         function sendAudioToServer(audioData) {
+            const float32Array = new Float32Array(audioData);
             fetch(`${serverURL}/upload_audio`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/octet-stream'
                 },
-                body: audioData.buffer
+                body: float32Array.buffer
             })
             .then(response => response.json())
             .then(data => {
