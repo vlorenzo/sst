@@ -25,4 +25,5 @@ diagnostic-app.py
 
 # Temporary HTML files
 templates/index-*.html
+old_versions/
 
