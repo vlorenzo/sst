@@ -1,6 +1,6 @@
 # Simultaneous Speech Translator (SST)
 
-This application provides real-time speech translation from Italian to English using AI-powered tools.
+This application provides real-time speech translation using AI-powered tools. By default, it translates from Italian to English, but you can specify different input and output languages.
 
 ## Prerequisites
 
@@ -60,9 +60,24 @@ source sst-env/bin/activate
 python sst.py
 ```
 
-3. Open a web browser and navigate to `http://127.0.0.1:5000/`
+By default, this will set up the application to translate from Italian to English.
 
-4. You should now see the application interface. Follow the on-screen instructions to start translating speech from Italian to English.
+3. To specify different input and output languages, use the following optional parameters:
+
+```bash
+python sst.py --input_lang [INPUT_LANG_CODE] --output_lang [OUTPUT_LANG_CODE]
+```
+
+For example, to translate from French to Spanish:
+
+```bash
+python sst.py --input_lang fr --output_lang es
+```
+Note: Make sure to use valid language codes supported by the Whisper model and Google Translate.
+
+4. Open a web browser and navigate to `http://127.0.0.1:5000/`
+
+5. You should now see the application interface. Follow the on-screen instructions to start translating speech.
 
 ## Troubleshooting
 
@@ -76,5 +91,5 @@ Contributions to improve the application are welcome. Please feel free to submit
 
 ## License
 
-[Specify your license here]
+This project is licensed under the MIT License.
 

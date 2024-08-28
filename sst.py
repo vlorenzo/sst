@@ -8,12 +8,57 @@ import queue
 import time
 import logging
 import requests
+import argparse
+
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+
+def create_app(input_lang='it', output_lang='en'):
+    app = Flask(__name__)
+    app.config['INPUT_LANG'] = input_lang
+    app.config['OUTPUT_LANG'] = output_lang
+
+    @app.route('/')
+    def index():
+        return render_template('index.html')
+
+    @app.route('/upload_audio', methods=['POST'])
+    def upload_audio():
+        logger.info("Received audio upload request")
+        if request.data:
+            try:
+                start_time = time.time()
+                audio, process_duration = process_audio(request.data)
+                audio_queue.put(audio)
+                total_duration = time.time() - start_time
+                logger.info(f"Audio upload and initial processing completed in {total_duration:.2f} seconds")
+                return jsonify({
+                    'message': 'Audio received and processing',
+                    'audio_process_time': process_duration,
+                    'total_upload_time': total_duration
+                }), 200
+            except Exception as e:
+                logger.error(f"Error processing uploaded audio: {str(e)}")
+                return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'No audio data received'}), 400
+
+    @app.route('/get_translation')
+    def get_translation():
+        logger.info("Received translation request")
+        global translation_result
+        if translation_result:
+            result = translation_result
+            translation_result = None
+            return jsonify({'translation': result})
+        return jsonify({'translation': None})
+
+    return app
+
+
 
 # Load Whisper model
 logger.info("Loading Whisper model...")
@@ -87,7 +132,7 @@ def process_audio(audio_data):
     logger.warning("Received empty or invalid audio data")
     return np.array([], dtype=AUDIO_DTYPE), time.time() - start_time
 
-def audio_processor():
+def audio_processor(app):
     logger.info("Starting audio processor thread...")
     global translation_result
     audio_buffer = np.array([], dtype=AUDIO_DTYPE)
@@ -117,7 +162,9 @@ def audio_processor():
                     
                     # Transcription
                     transcribe_start_time = time.time()
-                    result = model.transcribe(audio_buffer_contiguous, language="it")
+                    input_lang = app.config['INPUT_LANG']
+                    result = model.transcribe(audio_buffer_contiguous, language=input_lang)
+                
                     transcribe_duration = time.time() - transcribe_start_time
                     logger.info(f"Transcription completed in {transcribe_duration:.2f} seconds")
                     
@@ -126,11 +173,13 @@ def audio_processor():
                     
                     if transcription:
                         # Translation
-                        translation, translate_duration = translate_text(transcription, src='it', dest='en')
+                        output_lang = app.config['OUTPUT_LANG']
+                        translation, translate_duration = translate_text(transcription, src=input_lang, dest=output_lang)
+                        #translation, translate_duration = translate_text(transcription, src='it', dest='en')
                         logger.info(f"Translation completed in {translate_duration:.2f} seconds")
                         translation_result = translation
-                        logger.info(f"Italian Transcription: {transcription}")
-                        logger.info(f"English Translation: {translation}")
+                        logger.info(f"{input_lang.capitalize()} Transcription: {transcription}")
+                        logger.info(f"{output_lang.capitalize()} Translation: {translation}")
                     else:
                         logger.info("No transcription produced for this audio chunk.")
                 else:
@@ -159,44 +208,17 @@ def audio_processor():
             logger.exception("Exception details:")
             translation_result = f"Error: {str(e)}"
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/upload_audio', methods=['POST'])
-def upload_audio():
-    logger.info("Received audio upload request")
-    if request.data:
-        try:
-            start_time = time.time()
-            audio, process_duration = process_audio(request.data)
-            audio_queue.put(audio)
-            total_duration = time.time() - start_time
-            logger.info(f"Audio upload and initial processing completed in {total_duration:.2f} seconds")
-            return jsonify({
-                'message': 'Audio received and processing',
-                'audio_process_time': process_duration,
-                'total_upload_time': total_duration
-            }), 200
-        except Exception as e:
-            logger.error(f"Error processing uploaded audio: {str(e)}")
-            return jsonify({'error': str(e)}), 500
-    return jsonify({'error': 'No audio data received'}), 400
-
-@app.route('/get_translation')
-def get_translation():
-    logger.info("Received translation request")
-    global translation_result
-    if translation_result:
-        result = translation_result
-        translation_result = None
-        return jsonify({'translation': result})
-    return jsonify({'translation': None})
-
 if __name__ == '__main__':
-    logger.info("Initializing audio processor thread...")
-    audio_thread = threading.Thread(target=audio_processor, daemon=True)
-    audio_thread.start()
+    parser = argparse.ArgumentParser(description='Speech-to-Text and Translation App')
+    parser.add_argument('--input_lang', default='it', help='Input language code (default: it)')
+    parser.add_argument('--output_lang', default='en', help='Output language code (default: en)')
+    args = parser.parse_args()
 
-    logger.info("Starting Flask app...")
+    app = create_app(input_lang=args.input_lang, output_lang=args.output_lang)
+    logger.info(f"Starting app with input language: {app.config['INPUT_LANG']} and output language: {app.config['OUTPUT_LANG']}")
+    
+    # Start the audio processor thread
+    audio_thread = threading.Thread(target=audio_processor, args=(app,))
+    audio_thread.start()
+    
     app.run(debug=True, use_reloader=False)
