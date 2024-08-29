@@ -13,10 +13,12 @@ import os
 import wave
 from datetime import datetime
 import soundfile as sf
+from collections import deque
+import json
 
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -83,6 +85,16 @@ AUDIO_DTYPE = np.float32
 audio_queue = queue.Queue()
 translation_result = None
 
+# global variables for dynamic prompt   
+static_prompt = """
+Nomi: Lorenzo, Lorenzo Verna, Twiper, AGER, Bologna.
+Acronimi: CTO (Chief Technology Officer)
+Termini Tecnici: AGER, Evento AGER, Artificial Intelligence, SST (Simultaneous Speech Translator).
+Frase di saluto: Buongiorno a tutti, sono Lorenzo Verna, CTO di Twiper. Benvenuti al Evento AGER. E' un piacere condividere con voi. le nostre soluzioni di Intelligenza Artificale applicate al vostro business. 
+"""
+previous_transcripts = deque(maxlen=3)  # Store the last 3 transcripts
+
+
 def translate_text(text, src='it', dest='en'):
     start_time = time.time()
     try:
@@ -137,20 +149,61 @@ def process_audio(audio_data):
 
 
 # Add this function to save audio segments
-def save_audio_segment(audio_data, sample_rate, input_lang):
+
+def save_audio_segment(audio_data, sample_rate, input_lang, timestamp):
     if not os.path.exists('data'):
         os.makedirs('data')
     
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"data/audio_{timestamp}_{input_lang}.wav"
     
-    # Normalize audio data to float32 range [-1, 1]
-    audio_data_normalized = audio_data.astype(np.float32) / np.iinfo(np.int16).max
+    # Debug information
+    logger.debug(f"Original audio data - min: {np.min(audio_data)}, max: {np.max(audio_data)}, dtype: {audio_data.dtype}")
+    
+    # Ensure audio data is in float32 format
+    audio_float = audio_data.astype(np.float32)
+    
+    # Normalize audio to range [-1, 1]
+    audio_normalized = audio_float / np.max(np.abs(audio_float))
+    
+    # Apply a gain to make it more audible (adjust as needed)
+    gain = 0.5
+    audio_amplified = audio_normalized * gain
+    
+    # Clip to ensure no values exceed [-1, 1]
+    audio_clipped = np.clip(audio_amplified, -1, 1)
+    
+    # Debug information after processing
+    logger.debug(f"Processed audio data - min: {np.min(audio_clipped)}, max: {np.max(audio_clipped)}")
     
     # Save using soundfile library
-    sf.write(filename, audio_data_normalized, sample_rate)
+    sf.write(filename, audio_clipped, sample_rate)
     
     logger.info(f"Saved audio segment: {filename}")
+
+
+def generate_dynamic_prompt(static_prompt, previous_transcripts):
+    previous_text = " ".join(previous_transcripts)
+    logger.debug(f"Dynamic prompt: {static_prompt}\n\nPrevious transcripts: {previous_text}")
+    return f"{static_prompt}\n\nPrevious transcripts: {previous_text}"
+
+def save_transcript_and_translation(timestamp, input_lang, output_lang, transcription, translation):
+    if not os.path.exists('data'):
+        os.makedirs('data')
+    
+    filename = f"data/transcript_{timestamp}_{input_lang}_{output_lang}.txt"
+    
+    data = {
+        "timestamp": timestamp,
+        "input_language": input_lang,
+        "output_language": output_lang,
+        "transcription": transcription,
+        "translation": translation
+    }
+    
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    logger.info(f"Saved transcript and translation: {filename}")
 
 
 def audio_processor(app):
@@ -186,20 +239,28 @@ def audio_processor(app):
                     logger.debug(f"Audio buffer dtype: {audio_buffer_contiguous.dtype}")
                     logger.debug(f"Audio buffer min: {np.min(audio_buffer_contiguous)}, max: {np.max(audio_buffer_contiguous)}")
                     
-                    # Save the audio segment
+                   # Save the audio segment
                     input_lang = app.config['INPUT_LANG']
-                    save_audio_segment(audio_buffer_contiguous, SAMPLE_RATE, input_lang)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    save_audio_segment(audio_buffer_contiguous, SAMPLE_RATE, input_lang, timestamp)
+                    
                     
                     # Transcription
                     transcribe_start_time = time.time()
-                    result = model.transcribe(audio_buffer_contiguous, language=input_lang)
+                    dynamic_prompt = generate_dynamic_prompt(static_prompt, previous_transcripts)
+                    result = model.transcribe(audio_buffer_contiguous, 
+                                              language=input_lang, 
+                                              prompt=dynamic_prompt)
+                    #result = model.transcribe(audio_buffer_contiguous, language=input_lang)
                 
                     transcribe_duration = time.time() - transcribe_start_time
                     logger.info(f"Transcription completed in {transcribe_duration:.2f} seconds")
                     
                     transcription = result["text"].strip()
                     logger.info(f"Transcription result: '{transcription}'")
-                    
+
+                    previous_transcripts.append(transcription)
+
                     if transcription:
                         # Translation
                         output_lang = app.config['OUTPUT_LANG']
@@ -209,6 +270,9 @@ def audio_processor(app):
                         translation_result = translation
                         logger.info(f"{input_lang.capitalize()} Transcription: {transcription}")
                         logger.info(f"{output_lang.capitalize()} Translation: {translation}")
+                        # Save transcript and translation
+                        save_transcript_and_translation(timestamp, input_lang, output_lang, transcription, translation)
+                    
                     else:
                         logger.info("No transcription produced for this audio chunk.")
                 else:
