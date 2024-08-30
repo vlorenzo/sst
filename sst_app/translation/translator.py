@@ -48,9 +48,10 @@ def translate_text_gpt4(text, src='it', dest='en'):
     start_time = time.time()
     try:
         system_prompt = f"""
-        You are a professional translator. Translate the following text from {src} to {dest}.
+        You are a professional translator. Translate the users text from {src} to {dest}.
         Correct any errors if present, considering the following names and context: You are translating a live talk at an event in Bologna hosted by Versya, Lorenzo Verna is the  CTO at Twiper.
         Maintain the original meaning and tone of the text while providing an accurate and natural translation.
+        Just return the translation, no intro, no explanation, no commentary.
         """
 
         response = openai_client.chat.completions.create(

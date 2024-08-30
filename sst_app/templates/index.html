@@ -6,7 +6,19 @@
     <title>Italian to English Translation App</title>
     <style>
         #status, #error { color: red; }
-        #output { margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        #output { margin-top: 20px; height: 300px; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+        #lastTranslation { 
+            font-size: 1.2em; 
+            font-weight: bold; 
+            padding: 10px; 
+            background-color: #f0f0f0; 
+            border-radius: 5px; 
+            margin-bottom: 10px;
+        }
+        .previousTranslation { 
+            opacity: 0.7; 
+            transition: opacity 0.5s ease-out; 
+        }
     </style>
 </head>
 <body>
@@ -16,7 +28,9 @@
     <button id="stopButton" disabled>Stop Translation</button>
     <div id="status"></div>
     <div id="error"></div>
-    <div id="output"></div>
+    <div id="output">
+        <div id="lastTranslation"></div>
+    </div>
 
     <script>
         let audioContext;
@@ -108,8 +122,7 @@
             })
             .then(data => {
                 if (data.translation) {
-                    output.innerHTML += `<p>${data.translation}</p>`;
-                    output.scrollTop = output.scrollHeight;
+                    updateTranslations(data.translation);
                 }
                 if (!stopButton.disabled) {
                     setTimeout(pollForTranslation, 1000);
@@ -122,6 +135,33 @@
                     setTimeout(pollForTranslation, 1000);
                 }
             });
+        }
+
+        function updateTranslations(newTranslation) {
+            const lastTranslationElement = document.getElementById('lastTranslation');
+            const outputElement = document.getElementById('output');
+
+            // Move the current last translation to the previous translations
+            if (lastTranslationElement.textContent) {
+                const previousTranslation = document.createElement('div');
+                previousTranslation.textContent = lastTranslationElement.textContent;
+                previousTranslation.className = 'previousTranslation';
+                outputElement.insertBefore(previousTranslation, lastTranslationElement);
+
+                // Fade out older translations
+                setTimeout(() => {
+                    previousTranslation.style.opacity = '0.5';
+                }, 100);
+            }
+
+            // Update the last translation
+            lastTranslationElement.textContent = newTranslation;
+
+            // Limit the number of previous translations shown
+            const previousTranslations = outputElement.getElementsByClassName('previousTranslation');
+            if (previousTranslations.length > 5) {
+                outputElement.removeChild(previousTranslations[previousTranslations.length - 1]);
+            }
         }
     </script>
 </body>

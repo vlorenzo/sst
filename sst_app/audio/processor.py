@@ -19,6 +19,7 @@ def audio_processor(app):
     audio_buffer = np.array([], dtype=AUDIO_DTYPE)
     silence_threshold = 0.01
     last_process_time = time.time()
+    previous_transcript = ""  
 
     while True:
         try:
@@ -50,11 +51,13 @@ def audio_processor(app):
                         output_lang = app.config['OUTPUT_LANG']
                         use_gpt4 = app.config['USE_GPT4_TRANSLATION']
                         logger.info(f"Using GPT-4 for translation: {use_gpt4}")  # Debug log
-                        translation, translate_duration = translate_text(transcription, src=input_lang, dest=output_lang, use_gpt4=use_gpt4)
+                        combined_transcript = f"{previous_transcript}  {transcription}".strip()
+                        translation, translate_duration = translate_text(combined_transcript, src=input_lang, dest=output_lang, use_gpt4=use_gpt4)
                         result = f"{input_lang.upper()}: {transcription}\n{output_lang.upper()}: {translation}"
                         translation_queue.put(result)
                         save_transcript_and_translation(timestamp, input_lang, output_lang, transcription, translation)
                         logger.info(f"Translation result: {result}")
+                        previous_transcript = transcription
                     else:
                         logger.info("No transcription produced for this audio chunk.")
                 else:
