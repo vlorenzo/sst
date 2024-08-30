@@ -23,7 +23,7 @@ def audio_processor(app):
 
     while True:
         try:
-            audio_chunk = audio_queue.get(timeout=1)
+            audio_chunk, input_lang, output_lang = audio_queue.get(timeout=1)
             audio_buffer = np.concatenate((audio_buffer, audio_chunk))
 
             current_time = time.time()
@@ -41,14 +41,12 @@ def audio_processor(app):
                     logger.info("Audio level above silence threshold, transcribing...")
                     audio_buffer_contiguous = np.ascontiguousarray(audio_buffer, dtype=AUDIO_DTYPE)
                     
-                    input_lang = app.config['INPUT_LANG']
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     save_audio_segment(audio_buffer_contiguous, SAMPLE_RATE, input_lang, timestamp)
                     
                     transcription, transcribe_duration = transcribe_audio(audio_buffer_contiguous, input_lang)
                     
                     if transcription:
-                        output_lang = app.config['OUTPUT_LANG']
                         use_gpt4 = app.config['USE_GPT4_TRANSLATION']
                         logger.info(f"Using GPT-4 for translation: {use_gpt4}")  # Debug log
                         combined_transcript = f"{previous_transcript}  {transcription}".strip()

@@ -41,6 +41,8 @@
 <body>
     <h1>Italian to English Translation</h1>
     <p>Speak in Italian, and see the English translation below.</p>
+    <select id="inputLangSelect"></select>
+    <select id="outputLangSelect"></select>
     <select id="microphoneSelect"></select>
     <button id="startButton">Start Translation</button>
     <button id="stopButton" disabled>Stop Translation</button>
@@ -62,10 +64,32 @@
         const error = document.getElementById('error');
         const output = document.getElementById('output');
         const microphoneSelect = document.getElementById('microphoneSelect');
+        const inputLangSelect = document.getElementById('inputLangSelect');
+        const outputLangSelect = document.getElementById('outputLangSelect');
 
         const serverURL = window.location.origin;
 
-        // New function to populate microphone list
+        const languages = [
+            { code: 'it', name: 'Italian' },
+            { code: 'en', name: 'English' },
+            { code: 'fr', name: 'French' },
+            { code: 'es', name: 'Spanish' },
+            // Add more languages as needed
+        ];
+
+        function populateLanguageDropdowns() {
+            languages.forEach(lang => {
+                const inputOption = new Option(lang.name, lang.code);
+                const outputOption = new Option(lang.name, lang.code);
+                inputLangSelect.add(inputOption);
+                outputLangSelect.add(outputOption);
+            });
+            inputLangSelect.value = 'it';  // Default to Italian
+            outputLangSelect.value = 'en';  // Default to English
+        }
+
+        populateLanguageDropdowns();
+
         async function populateMicrophoneList() {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
@@ -79,7 +103,6 @@
             });
         }
 
-        // Call this function when the page loads
         populateMicrophoneList();
 
         startButton.onclick = async () => {
@@ -108,7 +131,7 @@
 
                 startButton.disabled = true;
                 stopButton.disabled = false;
-                status.textContent = "Recording and translating Italian to English...";
+                status.textContent = `Recording and translating ${inputLangSelect.options[inputLangSelect.selectedIndex].text} to ${outputLangSelect.options[outputLangSelect.selectedIndex].text}...`;
                 error.textContent = "";
                 pollForTranslation();
             } catch (err) {
@@ -133,7 +156,9 @@
             fetch(`${serverURL}/upload_audio`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/octet-stream'
+                    'Content-Type': 'application/octet-stream',
+                    'X-Input-Lang': inputLangSelect.value,
+                    'X-Output-Lang': outputLangSelect.value
                 },
                 body: audioData.buffer
             })

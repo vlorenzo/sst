@@ -21,7 +21,9 @@ def upload_audio():
         try:
             start_time = time.time()
             audio, process_duration = process_audio(request.data)
-            audio_queue.put(audio)
+            input_lang = request.headers.get('X-Input-Lang', 'it')
+            output_lang = request.headers.get('X-Output-Lang', 'en')
+            audio_queue.put((audio, input_lang, output_lang))
             total_duration = time.time() - start_time
             logger.info(f"Audio upload and initial processing completed in {total_duration:.2f} seconds")
             return jsonify({
