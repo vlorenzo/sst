@@ -33,11 +33,15 @@
             margin-bottom: 5px;
             transition: opacity 0.5s ease-out; 
         }
+        #microphoneSelect {
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Italian to English Translation</h1>
     <p>Speak in Italian, and see the English translation below.</p>
+    <select id="microphoneSelect"></select>
     <button id="startButton">Start Translation</button>
     <button id="stopButton" disabled>Stop Translation</button>
     <div id="status"></div>
@@ -57,12 +61,35 @@
         const status = document.getElementById('status');
         const error = document.getElementById('error');
         const output = document.getElementById('output');
+        const microphoneSelect = document.getElementById('microphoneSelect');
 
         const serverURL = window.location.origin;
 
+        // New function to populate microphone list
+        async function populateMicrophoneList() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
+            
+            microphoneSelect.innerHTML = '';
+            audioInputDevices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Microphone ${microphoneSelect.length + 1}`;
+                microphoneSelect.appendChild(option);
+            });
+        }
+
+        // Call this function when the page loads
+        populateMicrophoneList();
+
         startButton.onclick = async () => {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const constraints = {
+                    audio: {
+                        deviceId: { exact: microphoneSelect.value }
+                    }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 mediaStreamSource = audioContext.createMediaStreamSource(stream);
                 processor = audioContext.createScriptProcessor(4096, 1, 1);
