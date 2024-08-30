@@ -6,17 +6,31 @@
     <title>Italian to English Translation App</title>
     <style>
         #status, #error { color: red; }
-        #output { margin-top: 20px; height: 300px; overflow-y: auto; display: flex; flex-direction: column-reverse; }
+        #translationContainer {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            display: flex;
+            flex-direction: column;
+            height: 300px;
+        }
         #lastTranslation { 
             font-size: 1.2em; 
             font-weight: bold; 
             padding: 10px; 
             background-color: #f0f0f0; 
-            border-radius: 5px; 
-            margin-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            flex-shrink: 0;
+        }
+        #previousTranslations {
+            overflow-y: auto;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 10px;
         }
         .previousTranslation { 
             opacity: 0.7; 
+            margin-bottom: 5px;
             transition: opacity 0.5s ease-out; 
         }
     </style>
@@ -28,8 +42,9 @@
     <button id="stopButton" disabled>Stop Translation</button>
     <div id="status"></div>
     <div id="error"></div>
-    <div id="output">
+    <div id="translationContainer">
         <div id="lastTranslation"></div>
+        <div id="previousTranslations"></div>
     </div>
 
     <script>
@@ -111,7 +126,6 @@
                 error.textContent = "Error sending audio: " + err.message;
             });
         }
-
         function pollForTranslation() {
             fetch(`${serverURL}/get_translation`)
             .then(response => {
@@ -121,8 +135,8 @@
                 return response.json();
             })
             .then(data => {
-                if (data.translation) {
-                    updateTranslations(data.translation);
+                if (data.timestamp) {  // Check for timestamp instead of translation
+                    updateTranslations(data);
                 }
                 if (!stopButton.disabled) {
                     setTimeout(pollForTranslation, 1000);
@@ -137,31 +151,62 @@
             });
         }
 
+        
+        function formatTimestamp(timestamp) {
+            if (timestamp.includes('_')) {
+                // Server timestamp format: "YYYYMMDD_HHMMSS"
+                const [date, time] = timestamp.split('_');
+                const hour = time.slice(0, 2);
+                const minute = time.slice(2, 4);
+                const second = time.slice(4, 6);
+                return `${hour}:${minute}:${second}.000`;  // Adding .000 for consistency
+            } else {
+                // Client-side timestamp (assuming it's a Date object)
+                return new Date(timestamp).toLocaleTimeString('en-US', { 
+                    hour12: false, 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit',
+                    fractionalSecondDigits: 3
+                });
+            }
+        }
+
+
         function updateTranslations(newTranslation) {
             const lastTranslationElement = document.getElementById('lastTranslation');
-            const outputElement = document.getElementById('output');
+            const previousTranslationsElement = document.getElementById('previousTranslations');
 
             // Move the current last translation to the previous translations
             if (lastTranslationElement.textContent) {
                 const previousTranslation = document.createElement('div');
                 previousTranslation.textContent = lastTranslationElement.textContent;
                 previousTranslation.className = 'previousTranslation';
-                outputElement.insertBefore(previousTranslation, lastTranslationElement);
-
-                // Fade out older translations
+                previousTranslationsElement.insertBefore(previousTranslation, previousTranslationsElement.firstChild);
+            // Fade out older translations
                 setTimeout(() => {
                     previousTranslation.style.opacity = '0.5';
                 }, 100);
             }
 
-            // Update the last translation
-            lastTranslationElement.textContent = newTranslation;
+            // Format timestamps
+            const translationTimestamp = formatTimestamp(newTranslation.timestamp);
+            const currentTimestamp = formatTimestamp(new Date().toISOString());
 
-            // Limit the number of previous translations shown
+            // Update the last translation
+            const formattedTranslation = `[${translationTimestamp}] (${currentTimestamp}): ${newTranslation.translated_text}`;
+            lastTranslationElement.textContent = formattedTranslation;
+
+            // Scroll to the bottom of the output div
+            previousTranslationsElement.scrollTop = 0;
+            //outputElement.scrollTop = outputElement.scrollHeight;
+
+            /* Limit the number of previous translations shown
             const previousTranslations = outputElement.getElementsByClassName('previousTranslation');
             if (previousTranslations.length > 5) {
                 outputElement.removeChild(previousTranslations[previousTranslations.length - 1]);
             }
+            */ 
         }
     </script>
 </body>

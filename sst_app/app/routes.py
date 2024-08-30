@@ -42,6 +42,6 @@ def get_translation():
     try:
         result = translation_queue.get_nowait()
         logger.info(f"Sending translation: {result}")
-        return jsonify({'translation': result})
+        return jsonify(result)
     except queue.Empty:
         return jsonify({'translation': None})

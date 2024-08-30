@@ -53,7 +53,14 @@ def audio_processor(app):
                         logger.info(f"Using GPT-4 for translation: {use_gpt4}")  # Debug log
                         combined_transcript = f"{previous_transcript}  {transcription}".strip()
                         translation, translate_duration = translate_text(combined_transcript, src=input_lang, dest=output_lang, use_gpt4=use_gpt4)
-                        result = f"{input_lang.upper()}: {transcription}\n{output_lang.upper()}: {translation}"
+                        #result = f"{input_lang.upper()}: {transcription}\n{output_lang.upper()}: {translation}"
+                        result = {
+                            "timestamp": timestamp,
+                            "source_lang": input_lang,
+                            "source_text": transcription,
+                            "target_lang": output_lang,
+                            "translated_text": translation
+                        }
                         translation_queue.put(result)
                         save_transcript_and_translation(timestamp, input_lang, output_lang, transcription, translation)
                         logger.info(f"Translation result: {result}")
