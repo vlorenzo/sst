@@ -1,6 +1,9 @@
 Flask==3.0.3
 Flask-SocketIO==5.3.6
-googletrans==3.0.0
+googletrans==4.0.0rc1
+#due to a conflict with googletrans and openai==1.43.0 you have to follow this instruction: https://github.com/ssut/py-googletrans/pull/381
 numpy==1.22.0
+openai==1.43.0
 openai-whisper==20231117
 requests==2.32.3
+soundfile==0.12.1
