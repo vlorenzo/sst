@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech-to-Text and Translation App</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #status, #translation {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Speech-to-Text and Translation App</h1>
+    <button id="startRecording">Start Recording</button>
+    <button id="stopRecording" disabled>Stop Recording</button>
+    <div id="status"></div>
+    <div id="translation"></div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        $("#startRecording").click(function() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+
+                    mediaRecorder.addEventListener("dataavailable", event => {
+                        audioChunks.push(event.data);
+                    });
+
+                    $("#startRecording").prop("disabled", true);
+                    $("#stopRecording").prop("disabled", false);
+                    $("#status").text("Recording...");
+                });
+        });
+
+        $("#stopRecording").click(function() {
+            mediaRecorder.stop();
+            $("#startRecording").prop("disabled", false);
+            $("#stopRecording").prop("disabled", true);
+            $("#status").text("Processing audio...");
+
+            mediaRecorder.addEventListener("stop", () => {
+                const audioBlob = new Blob(audioChunks);
+                audioChunks = [];
+
+                const formData = new FormData();
+                formData.append("audio", audioBlob);
+
+                $.ajax({
+                    url: "/upload_audio",
+                    type: "POST",
+                    data: audioBlob,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        $("#status").text("Audio uploaded successfully. Waiting for translation...");
+                        checkTranslation();
+                    },
+                    error: function(xhr, status, error) {
+                        $("#status").text("Error uploading audio: " + error);
+                    }
+                });
+            });
+        });
+
+        function checkTranslation() {
+            $.get("/get_translation", function(data) {
+                if (data.translation) {
+                    $("#translation").text("Translation: " + data.translation);
+                    $("#status").text("Translation complete.");
+                } else {
+                    setTimeout(checkTranslation, 1000);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
