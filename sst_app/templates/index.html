@@ -3,49 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Italian to English Translation App</title>
+    <title>Speech Translation App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        #status, #error { color: red; }
-        #translationContainer {
-            margin-top: 20px;
-            border: 1px solid #ccc;
-            display: flex;
-            flex-direction: column;
-            height: 300px;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        #lastTranslation { 
-            font-size: 1.2em; 
-            font-weight: bold; 
-            padding: 10px; 
-            background-color: #f0f0f0; 
-            border-bottom: 1px solid #ccc;
-            flex-shrink: 0;
+        body {
+            font-family: 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        select, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        #status, #error {
+            color: #e74c3c;
+            margin-bottom: 10px;
+        }
+        #translationContainer {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        #lastTranslation {
+            background-color: #ecf0f1;
+            padding: 15px;
+            font-size: 18px;
+            border-bottom: 1px solid #ddd;
         }
         #previousTranslations {
+            max-height: 300px;
             overflow-y: auto;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column-reverse;
-            padding: 10px;
+            padding: 15px;
         }
-        .previousTranslation { 
-            opacity: 0.7; 
-            margin-bottom: 5px;
-            transition: opacity 0.5s ease-out; 
-        }
-        #microphoneSelect {
+        .previousTranslation {
             margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
         }
     </style>
 </head>
 <body>
-    <h1>Italian to English Translation</h1>
-    <p>Speak in Italian, and see the English translation below.</p>
-    <select id="inputLangSelect"></select>
-    <select id="outputLangSelect"></select>
-    <select id="microphoneSelect"></select>
-    <button id="startButton">Start Translation</button>
-    <button id="stopButton" disabled>Stop Translation</button>
+    <h1>Speech Translation App</h1>
+    <div class="controls">
+        <select id="inputLangSelect"></select>
+        <select id="outputLangSelect"></select>
+        <select id="microphoneSelect"></select>
+        <button id="startButton">Start Translation</button>
+        <button id="stopButton" disabled>Stop Translation</button>
+    </div>
     <div id="status"></div>
     <div id="error"></div>
     <div id="translationContainer">
@@ -235,10 +273,6 @@
                 previousTranslation.textContent = lastTranslationElement.textContent;
                 previousTranslation.className = 'previousTranslation';
                 previousTranslationsElement.insertBefore(previousTranslation, previousTranslationsElement.firstChild);
-            // Fade out older translations
-                setTimeout(() => {
-                    previousTranslation.style.opacity = '0.5';
-                }, 100);
             }
 
             // Format timestamps
@@ -246,19 +280,17 @@
             const currentTimestamp = formatTimestamp(new Date().toISOString());
 
             // Update the last translation
-            const formattedTranslation = `[${translationTimestamp}] (${currentTimestamp}): ${newTranslation.translated_text}`;
-            lastTranslationElement.textContent = formattedTranslation;
+            const formattedTranslation = `${newTranslation.translated_text}`;
+            lastTranslationElement.innerHTML = `
+                <small>${translationTimestamp} (${currentTimestamp})</small><br>
+                ${formattedTranslation}
+            `;
 
-            // Scroll to the bottom of the output div
-            previousTranslationsElement.scrollTop = 0;
-            //outputElement.scrollTop = outputElement.scrollHeight;
-
-            /* Limit the number of previous translations shown
-            const previousTranslations = outputElement.getElementsByClassName('previousTranslation');
+            // Limit the number of previous translations shown
+            const previousTranslations = previousTranslationsElement.getElementsByClassName('previousTranslation');
             if (previousTranslations.length > 5) {
-                outputElement.removeChild(previousTranslations[previousTranslations.length - 1]);
+                previousTranslationsElement.removeChild(previousTranslations[previousTranslations.length - 1]);
             }
-            */ 
         }
     </script>
 </body>
