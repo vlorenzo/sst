@@ -15,10 +15,14 @@
             font-family: 'Roboto', sans-serif;
             line-height: 1.6;
             color: #333;
+            background-color: #f4f4f4;
+            overflow: hidden;
+        }
+        #controlPanel {
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f4f4f4;
+            transition: opacity 0.5s ease;
         }
         h1 {
             text-align: center;
@@ -52,41 +56,73 @@
             margin-bottom: 10px;
         }
         #translationContainer {
-            background-color: white;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+        #stopTranslationButton {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(231, 76, 60, 0.7);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        #stopTranslationButton:hover {
+            background-color: rgba(192, 57, 43, 0.9);
         }
         #lastTranslation {
-            background-color: #ecf0f1;
-            padding: 15px;
-            font-size: 18px;
-            border-bottom: 1px solid #ddd;
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
         }
         #previousTranslations {
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 15px;
+            overflow: hidden;
+            height: calc(100% - 100px);
+            position: relative;
         }
         .previousTranslation {
+            font-size: 24px;
             margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
+            opacity: 0;
+            transform: translateY(100%);
+            transition: opacity 1s ease, transform 1s ease;
         }
     </style>
 </head>
 <body>
-    <h1>Speech Translation App</h1>
-    <div class="controls">
-        <select id="inputLangSelect"></select>
-        <select id="outputLangSelect"></select>
-        <select id="microphoneSelect"></select>
-        <button id="startButton">Start Translation</button>
-        <button id="stopButton" disabled>Stop Translation</button>
+    <div id="controlPanel">
+        <h1>Speech Translation App</h1>
+        <div class="controls">
+            <select id="inputLangSelect"></select>
+            <select id="outputLangSelect"></select>
+            <select id="microphoneSelect"></select>
+            <button id="startButton">Start Translation</button>
+            <button id="stopButton" disabled>Stop Translation</button>
+        </div>
+        <div id="status"></div>
+        <div id="error"></div>
     </div>
-    <div id="status"></div>
-    <div id="error"></div>
     <div id="translationContainer">
+        <button id="stopTranslationButton">Stop Translation</button>
         <div id="lastTranslation"></div>
         <div id="previousTranslations"></div>
     </div>
@@ -100,10 +136,10 @@
         const stopButton = document.getElementById('stopButton');
         const status = document.getElementById('status');
         const error = document.getElementById('error');
-        const output = document.getElementById('output');
         const microphoneSelect = document.getElementById('microphoneSelect');
         const inputLangSelect = document.getElementById('inputLangSelect');
         const outputLangSelect = document.getElementById('outputLangSelect');
+        const stopTranslationButton = document.getElementById('stopTranslationButton');
 
         const serverURL = window.location.origin;
 
@@ -129,27 +165,39 @@
         populateLanguageDropdowns();
 
         async function populateMicrophoneList() {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
-            
-            microphoneSelect.innerHTML = '';
-            audioInputDevices.forEach(device => {
-                const option = document.createElement('option');
-                option.value = device.deviceId;
-                option.text = device.label || `Microphone ${microphoneSelect.length + 1}`;
-                microphoneSelect.appendChild(option);
-            });
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
+                
+                microphoneSelect.innerHTML = '';
+                audioInputDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Microphone ${microphoneSelect.length + 1}`;
+                    microphoneSelect.appendChild(option);
+                });
+            } catch (err) {
+                console.error("Error accessing microphone:", err);
+                error.textContent = "Error: Unable to access microphone. Please ensure you have granted the necessary permissions.";
+            }
         }
 
-        populateMicrophoneList();
+        // Call populateMicrophoneList when the page loads
+        document.addEventListener('DOMContentLoaded', populateMicrophoneList);
 
         startButton.onclick = async () => {
             try {
+                if (microphoneSelect.options.length === 0) {
+                    throw new Error("No microphones available");
+                }
+
                 const constraints = {
                     audio: {
-                        deviceId: { exact: microphoneSelect.value }
+                        deviceId: microphoneSelect.value ? { exact: microphoneSelect.value } : undefined
                     }
                 };
+
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 mediaStreamSource = audioContext.createMediaStreamSource(stream);
@@ -171,6 +219,7 @@
                 stopButton.disabled = false;
                 status.textContent = `Recording and translating ${inputLangSelect.options[inputLangSelect.selectedIndex].text} to ${outputLangSelect.options[outputLangSelect.selectedIndex].text}...`;
                 error.textContent = "";
+                showTranslations();
                 pollForTranslation();
             } catch (err) {
                 console.error("Error accessing microphone:", err);
@@ -178,17 +227,24 @@
             }
         };
 
-        stopButton.onclick = () => {
+        stopButton.onclick = stopTranslation;
+        stopTranslationButton.onclick = stopTranslation;
+
+        function stopTranslation() {
             if (processor) {
                 processor.disconnect();
                 mediaStreamSource.disconnect();
                 audioContext.close();
-                startButton.disabled = false;
-                stopButton.disabled = true;
-                status.textContent = "Recording stopped.";
-                audioChunks = [];
             }
-        };
+            if (mediaStreamSource && mediaStreamSource.mediaStream) {
+                mediaStreamSource.mediaStream.getTracks().forEach(track => track.stop());
+            }
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            status.textContent = "Recording stopped.";
+            audioChunks = [];
+            hideTranslations();
+        }
 
         function sendAudioToServer(audioData) {
             fetch(`${serverURL}/upload_audio`, {
@@ -267,30 +323,45 @@
             const lastTranslationElement = document.getElementById('lastTranslation');
             const previousTranslationsElement = document.getElementById('previousTranslations');
 
-            // Move the current last translation to the previous translations
-            if (lastTranslationElement.textContent) {
-                const previousTranslation = document.createElement('div');
-                previousTranslation.textContent = lastTranslationElement.textContent;
-                previousTranslation.className = 'previousTranslation';
-                previousTranslationsElement.insertBefore(previousTranslation, previousTranslationsElement.firstChild);
-            }
-
-            // Format timestamps
-            const translationTimestamp = formatTimestamp(newTranslation.timestamp);
-            const currentTimestamp = formatTimestamp(new Date().toISOString());
-
             // Update the last translation
-            const formattedTranslation = `${newTranslation.translated_text}`;
-            lastTranslationElement.innerHTML = `
-                <small>${translationTimestamp} (${currentTimestamp})</small><br>
-                ${formattedTranslation}
-            `;
+            lastTranslationElement.textContent = newTranslation.translated_text;
 
-            // Limit the number of previous translations shown
+            // Move the current last translation to the previous translations
+            const previousTranslation = document.createElement('div');
+            previousTranslation.textContent = newTranslation.translated_text;
+            previousTranslation.className = 'previousTranslation';
+            previousTranslationsElement.insertBefore(previousTranslation, previousTranslationsElement.firstChild);
+
+            // Trigger reflow to enable animation
+            previousTranslation.offsetHeight;
+
+            // Animate the new previous translation
+            previousTranslation.style.opacity = '1';
+            previousTranslation.style.transform = 'translateY(0)';
+
+            // Fade out and remove old translations
             const previousTranslations = previousTranslationsElement.getElementsByClassName('previousTranslation');
-            if (previousTranslations.length > 5) {
-                previousTranslationsElement.removeChild(previousTranslations[previousTranslations.length - 1]);
+            for (let i = 0; i < previousTranslations.length; i++) {
+                const opacity = 1 - (i * 0.2);
+                previousTranslations[i].style.opacity = opacity > 0 ? opacity : 0;
+                if (i > 4) {
+                    previousTranslationsElement.removeChild(previousTranslations[i]);
+                }
             }
+        }
+
+        function showTranslations() {
+            document.getElementById('controlPanel').style.display = 'none';
+            document.getElementById('translationContainer').style.opacity = '1';
+            document.getElementById('translationContainer').style.pointerEvents = 'auto';
+            stopTranslationButton.style.opacity = '1';
+        }
+
+        function hideTranslations() {
+            document.getElementById('controlPanel').style.display = 'block';
+            document.getElementById('translationContainer').style.opacity = '0';
+            document.getElementById('translationContainer').style.pointerEvents = 'none';
+            stopTranslationButton.style.opacity = '0';
         }
     </script>
 </body>
