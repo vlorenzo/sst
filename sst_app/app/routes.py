@@ -23,7 +23,8 @@ def upload_audio():
             audio, process_duration = process_audio(request.data)
             input_lang = request.headers.get('X-Input-Lang', 'it')
             output_lang = request.headers.get('X-Output-Lang', 'en')
-            audio_queue.put((audio, input_lang, output_lang))
+            whisper_model = request.headers.get('X-Whisper-Model', 'openai')
+            audio_queue.put((audio, input_lang, output_lang, whisper_model))            
             total_duration = time.time() - start_time
             logger.info(f"Audio upload and initial processing completed in {total_duration:.2f} seconds")
             return jsonify({
