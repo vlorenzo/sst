@@ -108,6 +108,12 @@
             transform: translateY(100%);
             transition: opacity 1s ease, transform 1s ease;
         }
+        .timestamp {
+            font-size: 0.6em;
+            color: #888;
+            margin-right: 10px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -314,27 +320,20 @@
             });
         }
 
-        
         function formatTimestamp(timestamp) {
-            if (timestamp.includes('_')) {
-                // Server timestamp format: "YYYYMMDD_HHMMSS"
+            if (typeof timestamp === 'string' && timestamp.includes('_')) {
+                // Server timestamp format: "YYYYMMDD_HHMMSS_MMM"
                 const [date, time] = timestamp.split('_');
                 const hour = time.slice(0, 2);
                 const minute = time.slice(2, 4);
                 const second = time.slice(4, 6);
-                return `${hour}:${minute}:${second}.000`;  // Adding .000 for consistency
+                return `${hour}:${minute}:${second}`;
             } else {
-                // Client-side timestamp (assuming it's a Date object)
-                return new Date(timestamp).toLocaleTimeString('en-US', { 
-                    hour12: false, 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit',
-                    fractionalSecondDigits: 3
-                });
+                // Handle other cases (e.g., Date object or number)
+                const date = new Date(timestamp);
+                return date.toTimeString().split(' ')[0].slice(0, 8); // Returns "HH:MM:SS"
             }
         }
-
 
         function updateTranslations(newTranslation) {
             const lastTranslationElement = document.getElementById('lastTranslation');
@@ -343,8 +342,8 @@
             // Move the current last translation to the previous translations
             if (lastTranslationElement.textContent) {
                 const previousTranslation = document.createElement('div');
-                previousTranslation.textContent = lastTranslationElement.textContent;
                 previousTranslation.className = 'previousTranslation';
+                previousTranslation.innerHTML = lastTranslationElement.innerHTML;
                 previousTranslationsElement.insertBefore(previousTranslation, previousTranslationsElement.firstChild);
 
                 // Trigger reflow to enable animation
@@ -356,7 +355,18 @@
             }
 
             // Update the last translation
-            lastTranslationElement.textContent = newTranslation.translated_text;
+            lastTranslationElement.innerHTML = '';
+            
+            const timestamp = document.createElement('span');
+            timestamp.className = 'timestamp';
+            const serverTime = formatTimestamp(newTranslation.timestamp);
+            const clientTime = formatTimestamp(new Date());
+            timestamp.textContent = `[${serverTime}|${clientTime}]`;
+            lastTranslationElement.appendChild(timestamp);
+
+            const text = document.createElement('span');
+            text.textContent = ' ' + newTranslation.translated_text;
+            lastTranslationElement.appendChild(text);
 
             // Fade out and remove old translations
             const previousTranslations = previousTranslationsElement.getElementsByClassName('previousTranslation');
