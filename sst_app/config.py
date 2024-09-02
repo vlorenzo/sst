@@ -4,6 +4,7 @@ import logging
 SAMPLE_RATE = 16000  # Whisper expects 16kHz audio
 CHUNK_DURATION = 3  # Process 3 seconds of audio at a time
 AUDIO_DTYPE = 'float32'
+OVERLAP_DURATION = 1  # 1 second overlap
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

@@ -2,7 +2,7 @@ import numpy as np
 import threading
 import queue
 import time
-from sst_app.config import logger, SAMPLE_RATE, CHUNK_DURATION, AUDIO_DTYPE
+from sst_app.config import logger, SAMPLE_RATE, CHUNK_DURATION, AUDIO_DTYPE, OVERLAP_DURATION
 from .utils import save_audio_segment
 from sst_app.transcription.whisper_model import transcribe_audio
 from sst_app.translation.translator import translate_text
@@ -13,17 +13,25 @@ audio_queue = queue.Queue()
 translation_queue = queue.Queue()
 
 def audio_processor(app):
+    global previous_transcript
+    previous_transcript = ""
     logger.info("Starting audio processor thread...")
     logger.info(f"USE_GPT4_TRANSLATION config value: {app.config.get('USE_GPT4_TRANSLATION', False)}")
+    logger.info(f"USE_OVERLAPPING_CHUNKS config value: {app.config.get('USE_OVERLAPPING_CHUNKS', False)}")
     
     audio_buffer = np.array([], dtype=AUDIO_DTYPE)
     silence_threshold = 0.01
     last_process_time = time.time()
-    previous_transcript = ""  
+    new_session = True  # Add this flag
 
     while True:
         try:
             audio_chunk, input_lang, output_lang = audio_queue.get(timeout=1)
+            
+            if new_session:
+                previous_transcript = ""
+                new_session = False
+            
             audio_buffer = np.concatenate((audio_buffer, audio_chunk))
 
             current_time = time.time()
@@ -49,9 +57,9 @@ def audio_processor(app):
                     if transcription:
                         use_gpt4 = app.config['USE_GPT4_TRANSLATION']
                         logger.info(f"Using GPT-4 for translation: {use_gpt4}")  # Debug log
-                        combined_transcript = f"{previous_transcript}  {transcription}".strip()
+                        #combined_transcript = f"{previous_transcript}  {transcription}".strip()
+                        combined_transcript = f"{transcription}".strip()
                         translation, translate_duration = translate_text(combined_transcript, src=input_lang, dest=output_lang, use_gpt4=use_gpt4)
-                        #result = f"{input_lang.upper()}: {transcription}\n{output_lang.upper()}: {translation}"
                         result = {
                             "timestamp": timestamp,
                             "source_lang": input_lang,
@@ -68,10 +76,13 @@ def audio_processor(app):
                 else:
                     logger.info(f"Detected silence, skipping processing.")
 
-                audio_buffer = np.array([], dtype=AUDIO_DTYPE)
+                # Preserve the last part of the buffer for the next chunk
+                overlap_size = int(OVERLAP_DURATION * SAMPLE_RATE)
+                audio_buffer = audio_buffer[-overlap_size:]
                 last_process_time = current_time
                 process_duration = time.time() - process_start_time
                 logger.info(f"Total processing time for this chunk: {process_duration:.2f}s")
+
         except queue.Empty:
             logger.debug("No audio data received in the last second.")
             continue

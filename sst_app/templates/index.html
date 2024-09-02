@@ -66,7 +66,7 @@
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            padding: 20px;
+            padding: 40px 20px 20px; /* Increased top padding */
             opacity: 0;
             transition: opacity 0.5s ease;
             pointer-events: none;
@@ -75,24 +75,26 @@
             position: fixed;
             top: 10px;
             right: 10px;
-            background-color: rgba(231, 76, 60, 0.7);
+            background-color: rgba(231, 76, 60, 0.5); /* Reduced opacity */
             color: white;
             border: none;
             padding: 5px 10px;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px; /* Reduced font size */
             z-index: 1000;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.3s ease, background-color 0.3s ease;
+            width: auto; /* Changed from 100% to auto */
         }
         #stopTranslationButton:hover {
-            background-color: rgba(192, 57, 43, 0.9);
+            background-color: rgba(192, 57, 43, 0.7); /* Slightly more opaque on hover */
         }
         #lastTranslation {
             font-size: 36px;
             font-weight: bold;
             margin-bottom: 20px;
             text-align: center;
+            padding-top: 40px; /* Added padding to push text down */
         }
         #previousTranslations {
             overflow: hidden;
@@ -140,8 +142,9 @@
         const inputLangSelect = document.getElementById('inputLangSelect');
         const outputLangSelect = document.getElementById('outputLangSelect');
         const stopTranslationButton = document.getElementById('stopTranslationButton');
-
         const serverURL = window.location.origin;
+        const AUDIO_CHUNK_DURATION = {{ CHUNK_DURATION }}; // Insert CHUNK_DURATION value here
+        const OVERLAP_DURATION = {{ OVERLAP_DURATION }}; // Insert OVERLAP_DURATION value here
 
         const languages = [
             { code: 'it', name: 'Italian' },
@@ -206,12 +209,17 @@
                 mediaStreamSource.connect(processor);
                 processor.connect(audioContext.destination);
 
+                let lastChunkTime = 0;
+
                 processor.onaudioprocess = (e) => {
                     const inputData = e.inputBuffer.getChannelData(0);
                     audioChunks.push(...inputData);
-                    if (audioChunks.length >= audioContext.sampleRate * 3) {  // 3 seconds of audio
+                    const currentTime = audioContext.currentTime;
+                    
+                    if (currentTime - lastChunkTime >= AUDIO_CHUNK_DURATION - OVERLAP_DURATION) {
                         sendAudioToServer(new Float32Array(audioChunks));
-                        audioChunks = [];
+                        audioChunks = audioChunks.slice(-OVERLAP_DURATION * audioContext.sampleRate);
+                        lastChunkTime = currentTime;
                     }
                 };
 
@@ -244,6 +252,15 @@
             status.textContent = "Recording stopped.";
             audioChunks = [];
             hideTranslations();
+
+            // Clear the translations on the client side
+            document.getElementById('lastTranslation').textContent = '';
+            document.getElementById('previousTranslations').innerHTML = '';
+
+            // Add this line to clear the queues and reset the translation state on the server
+            fetch(`${serverURL}/reset_translation`, { method: 'POST' })
+                .then(() => console.log('Translation reset on server'))
+                .catch(err => console.error('Error resetting translation:', err));
         }
 
         function sendAudioToServer(audioData) {
@@ -323,21 +340,23 @@
             const lastTranslationElement = document.getElementById('lastTranslation');
             const previousTranslationsElement = document.getElementById('previousTranslations');
 
+            // Move the current last translation to the previous translations
+            if (lastTranslationElement.textContent) {
+                const previousTranslation = document.createElement('div');
+                previousTranslation.textContent = lastTranslationElement.textContent;
+                previousTranslation.className = 'previousTranslation';
+                previousTranslationsElement.insertBefore(previousTranslation, previousTranslationsElement.firstChild);
+
+                // Trigger reflow to enable animation
+                previousTranslation.offsetHeight;
+
+                // Animate the new previous translation
+                previousTranslation.style.opacity = '1';
+                previousTranslation.style.transform = 'translateY(0)';
+            }
+
             // Update the last translation
             lastTranslationElement.textContent = newTranslation.translated_text;
-
-            // Move the current last translation to the previous translations
-            const previousTranslation = document.createElement('div');
-            previousTranslation.textContent = newTranslation.translated_text;
-            previousTranslation.className = 'previousTranslation';
-            previousTranslationsElement.insertBefore(previousTranslation, previousTranslationsElement.firstChild);
-
-            // Trigger reflow to enable animation
-            previousTranslation.offsetHeight;
-
-            // Animate the new previous translation
-            previousTranslation.style.opacity = '1';
-            previousTranslation.style.transform = 'translateY(0)';
 
             // Fade out and remove old translations
             const previousTranslations = previousTranslationsElement.getElementsByClassName('previousTranslation');

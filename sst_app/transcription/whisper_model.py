@@ -10,7 +10,7 @@ def load_whisper_model():
     global model
     logger.info("Loading Whisper model...")
     start_time = time.time()
-    model = whisper.load_model("small")
+    model = whisper.load_model("base") # tiny, base, small, medium, large
     logger.info(f"Whisper model loaded successfully in {time.time() - start_time:.2f} seconds.")
 
 def generate_dynamic_prompt():

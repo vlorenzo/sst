@@ -8,7 +8,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_lang', default='en', help='Output language code (default: en)')
     args = parser.parse_args()
 
-    app = create_app(input_lang=args.input_lang, output_lang=args.output_lang, use_gpt4_translation=True)
+    app = create_app(input_lang=args.input_lang, output_lang=args.output_lang, use_gpt4_translation=True, use_overlapping_chunks=True)
     #app.config['USE_GPT4_TRANSLATION'] = True
     start_audio_processor(app)
     
