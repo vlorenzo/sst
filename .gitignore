@@ -33,3 +33,4 @@ templates/index-*.html
 old_versions/
 
 
+app.log
