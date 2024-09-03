@@ -5,7 +5,7 @@ This application provides real-time speech translation using AI-powered tools. B
 ## Prerequisites
 
 - macOS (10.15 Catalina or later recommended)
-- Python 3.8 or higher
+- Python <=3.8 >=3.10
 - pip (Python package installer)
 
 ## Setup Instructions
@@ -25,7 +25,7 @@ It's best practice to create a virtual environment for Python projects. This kee
 Navigate to your project directory and run:
 
 ```bash
-python3 -m venv sst-env
+python3 -m venv venv
 ```
 
 ### 3. Activate the Virtual Environment
@@ -33,7 +33,7 @@ python3 -m venv sst-env
 Activate the virtual environment:
 
 ```bash
-source sst-env/bin/activate
+source venv/bin/activate
 ```
 
 Your command prompt should now show "(sst-env)".
@@ -51,13 +51,19 @@ pip install -r requirements.txt
 1. Ensure your virtual environment is activated:
 
 ```bash
-source sst-env/bin/activate
+source venv/bin/activate
+```
+
+1a. If you want to use openai gpts models as translator you can set the OPENAI_API_KEY in your environment:
+
+```base
+export OPENAI_API_KEY=*****
 ```
 
 2. Run the Flask application:
 
 ```bash
-python sst.py
+python sst_app/main.py 
 ```
 
 By default, this will set up the application to translate from Italian to English.
@@ -65,19 +71,24 @@ By default, this will set up the application to translate from Italian to Englis
 3. To specify different input and output languages, use the following optional parameters:
 
 ```bash
-python sst.py --input_lang [INPUT_LANG_CODE] --output_lang [OUTPUT_LANG_CODE]
+python sst_app/main.py --input_lang [INPUT_LANG_CODE] --output_lang [OUTPUT_LANG_CODE]
 ```
 
 For example, to translate from French to Spanish:
 
 ```bash
-python sst.py --input_lang fr --output_lang es
+python sst_app/main.py --input_lang fr --output_lang es
 ```
 Note: Make sure to use valid language codes supported by the Whisper model and Google Translate.
 
-4. Open a web browser and navigate to `http://127.0.0.1:5000/`
+4. If you want to change the service port:
+```bash
+python sst_app/main.py --port 5001
+```
 
-5. You should now see the application interface. Follow the on-screen instructions to start translating speech.
+5. Open a web browser and navigate to `http://127.0.0.1:5001/`
+
+6. You should now see the application interface. Follow the on-screen instructions to start translating speech.
 
 ## Troubleshooting
 
