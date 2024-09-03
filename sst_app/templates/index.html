@@ -129,6 +129,10 @@
             <select id="microphoneSelect"></select>
             <button id="startButton">Start Translation</button>
             <button id="stopButton" disabled>Stop Translation</button>
+            <select id="whisperModelSelect">
+                <option value="openai">OpenAI Whisper</option>
+                <option value="faster">Faster Whisper</option>
+            </select>
         </div>
         <div id="status"></div>
         <div id="error"></div>
@@ -279,7 +283,9 @@
                 headers: {
                     'Content-Type': 'application/octet-stream',
                     'X-Input-Lang': inputLangSelect.value,
-                    'X-Output-Lang': outputLangSelect.value
+                    'X-Output-Lang': outputLangSelect.value,
+                    'X-Whisper-Model': document.getElementById('whisperModelSelect').value
+
                 },
                 body: audioData.buffer
             })
