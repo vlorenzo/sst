@@ -105,4 +105,4 @@ def audio_processor(app):
 def start_audio_processor(app):
     logger.info(f"Starting audio processor with USE_GPT4_TRANSLATION = {app.config['USE_GPT4_TRANSLATION']}")
     audio_thread = threading.Thread(target=audio_processor, args=(app,))
-    audio_thread.start()
+    audio_thread.start()    
