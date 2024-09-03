@@ -1,4 +1,4 @@
-from googletrans import Translator
+from pygoogletranslation import Translator
 from urllib.parse import quote
 import requests
 from sst_app.config import logger
@@ -26,7 +26,7 @@ def translate_text_google(text, src='it', dest='en'):
         logger.info(f"Google translation completed in {duration:.2f} seconds")
         return translation, duration
     except Exception as e:
-        logger.warning(f"Googletrans translation failed: {str(e)}")
+        logger.warning(f"Pygoogletrans translation failed: {str(e)}")
 
         try:
             encoded_text = quote(text)
