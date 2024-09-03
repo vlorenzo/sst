@@ -26,7 +26,7 @@ def audio_processor(app):
 
     while True:
         try:
-            audio_chunk, input_lang, output_lang = audio_queue.get(timeout=1)
+            audio_chunk, input_lang, output_lang, whisper_model = audio_queue.get(timeout=1)
             
             if new_session:
                 previous_transcript = ""
@@ -53,11 +53,13 @@ def audio_processor(app):
                 audio_buffer_contiguous = np.ascontiguousarray(audio_buffer[:SAMPLE_RATE * CHUNK_DURATION], dtype=AUDIO_DTYPE)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
                 datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-                save_audio_segment(audio_buffer_contiguous, SAMPLE_RATE, input_lang, f"audio_buffer_contiguous_{timestamp}")
+                #save_audio_segment(audio_buffer_contiguous, SAMPLE_RATE, input_lang, f"audio_buffer_contiguous_{timestamp}")
 
                 #transcription, transcribe_duration = transcribe_audio(audio_buffer_contiguous, input_lang)
-                transcription, transcribe_duration = transcribe_audio(audio_chunk, input_lang)
-                            
+                #transcription, transcribe_duration = transcribe_audio(audio_chunk, input_lang)
+                #transcription, transcribe_duration = transcribe_audio(audio_chunk, input_lang, model_type=whisper_model)            
+                transcription, transcribe_duration = transcribe_audio(audio_chunk, input_lang, model_type=whisper_model)
+                
                 if transcription:
                     use_gpt4 = app.config['USE_GPT4_TRANSLATION']
                     logger.info(f"Using GPT-4 for translation: {use_gpt4}")  # Debug log
